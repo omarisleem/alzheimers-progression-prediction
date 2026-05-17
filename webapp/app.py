@@ -1,5 +1,5 @@
 """
-Alzheimer progression predictor — simple Streamlit UI.
+Alzheimer progression predictor — Streamlit UI (all models on one form).
 
 Run from project root:
   streamlit run webapp/app.py
@@ -16,8 +16,9 @@ WEBAPP_DIR = Path(__file__).resolve().parent
 if str(WEBAPP_DIR) not in sys.path:
     sys.path.insert(0, str(WEBAPP_DIR))
 
-from config import FEATURE_UI, MODEL_FEATURES
-from predict import load_feature_meta, predict_progression
+from config import INTEGER_FEATURES, MODEL_FEATURES
+from data import generate_random_features
+from predict import list_models, load_feature_meta, predict_all_models
 
 st.set_page_config(
     page_title="Alzheimer Progression Predictor",
@@ -29,13 +30,12 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container { padding-top: 2rem; max-width: 820px; }
+    .block-container { padding-top: 2rem; max-width: 900px; }
     .result-card {
         border-radius: 12px;
         padding: 1.25rem 1.5rem;
         margin-top: 1rem;
         border: 1px solid #e2e8f0;
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     }
     .result-progressor {
         border-color: #fecaca;
@@ -45,8 +45,12 @@ st.markdown(
         border-color: #bbf7d0;
         background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     }
-    .result-title { font-size: 1.35rem; font-weight: 700; margin: 0 0 0.35rem 0; }
-    .muted { color: #64748b; font-size: 0.9rem; }
+    .result-title { font-size: 1.15rem; font-weight: 700; margin: 0 0 0.35rem 0; }
+    .muted { color: #64748b; font-size: 0.85rem; }
+    .result-error {
+        border-color: #fde68a;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -54,20 +58,23 @@ st.markdown(
 
 
 @st.cache_resource
+def _models():
+    return list_models()
+
+
+@st.cache_resource
 def _feature_meta():
     return load_feature_meta()
 
 
-def _defaults():
+def _defaults() -> dict:
     meta = _feature_meta()
     values = {}
     for col in MODEL_FEATURES:
         if col in meta:
             values[col] = meta[col]["default"]
-        elif col in FEATURE_UI and FEATURE_UI[col].get("kind") == "select":
-            values[col] = list(FEATURE_UI[col]["options"].keys())[0]
         else:
-            values[col] = 0.0
+            values[col] = 0
     return values
 
 
@@ -77,113 +84,216 @@ def _render_inputs(defaults: dict) -> dict:
     cols = st.columns(2)
 
     for i, col in enumerate(MODEL_FEATURES):
-        ui = FEATURE_UI[col]
         m = meta.get(col, {})
-        target = cols[i % 2]
+        lo = float(m.get("min", defaults[col] - 10))
+        hi = float(m.get("max", defaults[col] + 10))
+        if lo >= hi:
+            hi = lo + 1.0
 
-        with target:
-            if ui["kind"] == "select":
-                options = ui["options"]
-                keys = list(options.keys())
-                default_key = int(defaults[col]) if defaults[col] in keys else keys[0]
-                idx = keys.index(default_key) if default_key in keys else 0
-                choice = st.selectbox(
-                    ui["label"],
-                    options=keys,
-                    index=idx,
-                    format_func=lambda k, opts=options: opts[k],
-                    help=ui.get("help"),
-                    key=f"inp_{col}",
-                )
-                values[col] = int(choice)
+        with cols[i % 2]:
+            if col in INTEGER_FEATURES:
+                allowed = m.get("values")
+                if allowed:
+                    default = int(defaults[col])
+                    if default not in allowed:
+                        default = allowed[len(allowed) // 2]
+                    val = st.selectbox(
+                        col,
+                        options=allowed,
+                        index=allowed.index(default),
+                        key=f"inp_{col}",
+                    )
+                    values[col] = int(val)
+                else:
+                    values[col] = int(
+                        st.number_input(
+                            col,
+                            min_value=int(lo),
+                            max_value=int(hi),
+                            value=int(defaults[col]),
+                            step=1,
+                            key=f"inp_{col}",
+                        )
+                    )
             else:
-                lo = float(m.get("min", defaults[col] - 10))
-                hi = float(m.get("max", defaults[col] + 10))
-                if lo >= hi:
-                    hi = lo + 1.0
-                val = st.number_input(
-                    ui["label"],
-                    min_value=lo,
-                    max_value=hi,
-                    value=float(defaults[col]),
-                    help=ui.get("help"),
-                    key=f"inp_{col}",
+                values[col] = float(
+                    st.number_input(
+                        col,
+                        min_value=lo,
+                        max_value=hi,
+                        value=float(defaults[col]),
+                        key=f"inp_{col}",
+                    )
                 )
-                values[col] = float(val)
     return values
 
 
-def main():
-    with st.sidebar:
-        st.title("About")
-        st.markdown(
-            """
-            Predicts whether a patient is likely to **progress to Alzheimer's disease (AD)**
-            based on baseline clinical and imaging features.
+def _apply_features_to_form(features: dict) -> None:
+    for col, val in features.items():
+        st.session_state[f"inp_{col}"] = val
 
-            **Model:** Logistic regression (same hyperparameters as your modeling notebook).
 
-            **Data:** `df_clean_AD.csv`
+def _clear_form_state() -> None:
+    for key in list(st.session_state.keys()):
+        if key.startswith("inp_"):
+            del st.session_state[key]
+    st.session_state.pop("ground_truth", None)
+    st.session_state.pop("synthetic_random", None)
 
-            This tool is for **research / coursework** only — not for clinical use.
-            """
+
+def _load_random_sample() -> None:
+    features = generate_random_features(_feature_meta())
+    _apply_features_to_form(features)
+    st.session_state.pop("ground_truth", None)
+    st.session_state["synthetic_random"] = True
+
+
+def _render_synthetic_banner() -> None:
+    if st.session_state.get("synthetic_random"):
+        st.info(
+            "Random **synthetic** values (sampled from feature ranges, not a dataset row). "
+            "There is no known progressor label — compare model predictions only."
         )
-        if st.button("Reset form to typical values", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                if key.startswith("inp_"):
-                    del st.session_state[key]
-            st.rerun()
 
-    st.title("Alzheimer Progression Predictor")
-    st.caption("Enter patient baseline features → get progressor / non-progressor prediction")
 
-    defaults = _defaults()
-
-    with st.form("patient_form", clear_on_submit=False):
-        st.subheader("Patient features")
-        features = _render_inputs(defaults)
-        submitted = st.form_submit_button("Predict progression", type="primary", use_container_width=True)
-
-    if submitted:
-        try:
-            result = predict_progression(features)
-        except FileNotFoundError as exc:
-            st.error(str(exc))
-            st.info("From the project root, run: `python webapp/train_model.py`")
-            return
-
-        is_prog = result["prediction"] == 1
-        card_class = "result-progressor" if is_prog else "result-non"
-        emoji = "⚠️" if is_prog else "✓"
-        title = result["label"]
-        prob = result["probability"] if is_prog else result["probability_non_progressor"]
-
+def _render_model_result(result: dict, actual: int | None = None) -> None:
+    if not result.get("ok", True):
         st.markdown(
             f"""
-            <div class="result-card {card_class}">
-                <p class="result-title">{emoji} {title}</p>
-                <p class="muted">Model confidence: <strong>{prob * 100:.1f}%</strong></p>
+            <div class="result-card result-error">
+                <p class="result-title">⚠️ {result['model_name']}</p>
+                <p class="muted">Prediction failed: {result['error']}</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        return
 
-        st.progress(prob, text=f"Progression probability: {result['probability'] * 100:.1f}%")
+    is_prog = result["prediction"] == 1
+    card_class = "result-progressor" if is_prog else "result-non"
+    emoji = "⚠️" if is_prog else "✓"
+    prob = result["probability"] if is_prog else result["probability_non_progressor"]
+    threshold_note = ""
+    if result.get("threshold") is not None:
+        threshold_note = f" · threshold {result['threshold']}"
 
-        c1, c2 = st.columns(2)
-        c1.metric("P(progressor)", f"{result['probability'] * 100:.1f}%")
-        c2.metric("P(non-progressor)", f"{result['probability_non_progressor'] * 100:.1f}%")
+    match_note = ""
+    if actual is not None:
+        correct = result["prediction"] == actual
+        match_note = (
+            " · <strong>matches actual</strong>"
+            if correct
+            else " · <strong>does not match actual</strong>"
+        )
 
-        with st.expander("What do these labels mean?"):
-            st.markdown(
-                """
-                - **Progressor:** patient is predicted to reach AD (diagnosis code 3) during follow-up.
-                - **Non-progressor:** patient is predicted not to progress to AD.
+    st.markdown(
+        f"""
+        <div class="result-card {card_class}">
+            <p class="result-title">{emoji} {result['label']}</p>
+            <p class="muted">
+                <strong>{result['model_name']}</strong>{threshold_note} ·
+                confidence <strong>{prob * 100:.1f}%</strong>{match_note}
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.progress(result["probability"], text=f"P(progressor): {result['probability'] * 100:.1f}%")
 
-                The model was trained on ADNI-style cohort data with class imbalance; probabilities
-                should be interpreted cautiously.
-                """
-            )
+
+def main():
+    try:
+        models = _models()
+    except FileNotFoundError as exc:
+        st.error(str(exc))
+        st.info("From the project root: `python webapp/train_model.py`")
+        return
+
+    with st.sidebar:
+        st.title("About")
+        st.markdown(
+            """
+            Predicts **PROGRESSOR** vs **non-progressor** using all trained models
+            on `df_clean_AD.csv`.
+
+            Enter features once — every model returns a prediction.
+
+            Research / coursework only — not for clinical use.
+            """
+        )
+        st.subheader("Models")
+        for m in models:
+            th = m.get("threshold")
+            note = f" (threshold {th})" if th is not None else ""
+            st.markdown(f"- **{m['name']}**{note}")
+        if st.button("Reset form to median values", use_container_width=True):
+            _clear_form_state()
+            st.rerun()
+        if st.button("Fill random values", use_container_width=True):
+            _load_random_sample()
+            st.rerun()
+
+    st.title("Alzheimer Progression Predictor")
+    st.caption("Fill in patient features once — all models predict together")
+
+    if st.button("Fill with random values", type="secondary"):
+        _load_random_sample()
+        st.rerun()
+
+    _render_synthetic_banner()
+    truth = st.session_state.get("ground_truth")
+
+    defaults = _defaults()
+    for col in MODEL_FEATURES:
+        key = f"inp_{col}"
+        if key in st.session_state:
+            defaults[col] = st.session_state[key]
+
+    with st.form("patient_form", clear_on_submit=False):
+        st.subheader("Input features (df_clean_AD columns)")
+        features = _render_inputs(defaults)
+        submitted = st.form_submit_button(
+            "Predict with all models", type="primary", use_container_width=True
+        )
+
+    if submitted:
+        results = predict_all_models(features)
+        ok_results = [r for r in results if r.get("ok")]
+        actual = truth["progressor"] if truth else None
+
+        if ok_results:
+            progressor_votes = sum(1 for r in ok_results if r["prediction"] == 1)
+            n_ok = len(ok_results)
+            consensus = "Progressor" if progressor_votes > n_ok / 2 else "Non-progressor"
+            st.subheader("Summary")
+            if actual is not None:
+                correct_count = sum(1 for r in ok_results if r["prediction"] == actual)
+                majority_pred = 1 if progressor_votes > n_ok / 2 else 0
+                c1, c2, c3, c4, c5 = st.columns(5)
+                c4.metric("Models matching actual", f"{correct_count} / {n_ok}")
+                c5.metric(
+                    "Majority vs actual",
+                    "Match" if majority_pred == actual else "Mismatch",
+                )
+            else:
+                c1, c2, c3 = st.columns(3)
+            c1.metric("Models run", f"{n_ok} / {len(results)}")
+            c2.metric("Progressor votes", f"{progressor_votes} / {n_ok}")
+            c3.metric("Majority prediction", consensus)
+
+        st.subheader("Results by model")
+        for i, result in enumerate(results):
+            with st.container(border=True):
+                _render_model_result(result, actual=actual)
+                if result.get("ok"):
+                    c1, c2 = st.columns(2)
+                    c1.metric("P(progressor)", f"{result['probability'] * 100:.1f}%")
+                    c2.metric(
+                        "P(non-progressor)",
+                        f"{result['probability_non_progressor'] * 100:.1f}%",
+                    )
+            if i < len(results) - 1:
+                st.divider()
 
 
 if __name__ == "__main__":
