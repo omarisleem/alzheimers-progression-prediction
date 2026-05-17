@@ -1,0 +1,114 @@
+{
+  "PTGENDER": {
+    "min": 1.0,
+    "max": 2.0,
+    "default": 2,
+    "values": [
+      1,
+      2
+    ]
+  },
+  "PTEDUCAT": {
+    "min": 9.0,
+    "max": 20.0,
+    "default": 16.0
+  },
+  "PTMARRY": {
+    "min": 1.0,
+    "max": 4.0,
+    "default": 1,
+    "values": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "APOE4_COUNT": {
+    "min": 0.0,
+    "max": 2.0,
+    "default": 0,
+    "values": [
+      0,
+      1,
+      2
+    ]
+  },
+  "AGE": {
+    "min": 55.799041752224504,
+    "max": 89.24484599589323,
+    "default": 72.5448323066393
+  },
+  "LIMMTOTAL": {
+    "min": 0.0,
+    "max": 21.0,
+    "default": 11.0
+  },
+  "LDELTOTAL": {
+    "min": 0.0,
+    "max": 20.639999999999873,
+    "default": 9.0
+  },
+  "AVDEL30MIN": {
+    "min": 0.0,
+    "max": 15.0,
+    "default": 5.0
+  },
+  "AVDELTOT": {
+    "min": 1.9213444806325215,
+    "max": 15.0,
+    "default": 12.0
+  },
+  "CATANIMSC": {
+    "min": 5.0,
+    "max": 32.0,
+    "default": 18.54162681950564
+  },
+  "MMSCORE": {
+    "min": 20.0,
+    "max": 30.0,
+    "default": 28.0
+  },
+  "CDRSB": {
+    "min": 0.0,
+    "max": 5.0,
+    "default": 0.5
+  },
+  "FAQTOTAL": {
+    "min": -0.2577305749192902,
+    "max": 10.0,
+    "default": 0.0893958924491835
+  },
+  "TOTSCORE": {
+    "min": 1.33,
+    "max": 21.97631522483327,
+    "default": 7.67
+  },
+  "TOTAL13": {
+    "min": 1.67,
+    "max": 35.34441805586056,
+    "default": 12.67
+  },
+  "BRAINVOL": {
+    "min": 814.8208,
+    "max": 1305.3256,
+    "default": 1040.74
+  },
+  "VENTVOL": {
+    "min": 8.68436,
+    "max": 88.02529850229993,
+    "default": 36.505
+  },
+  "TOTAL_HIPPO": {
+    "min": 4.051649052380274,
+    "max": 8.146719999999997,
+    "default": 6.2328
+  },
+  "RAVLT_AVERAGE": {
+    "min": 2.0,
+    "max": 13.333333333333334,
+    "default": 7.5
+  }
+}

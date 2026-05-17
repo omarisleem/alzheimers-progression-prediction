@@ -1,0 +1,40 @@
+{
+  "models": [
+    {
+      "id": "logistic_regression",
+      "name": "Logistic Regression",
+      "file": "logistic_regression.joblib",
+      "threshold": null,
+      "backend": "sklearn"
+    },
+    {
+      "id": "svm",
+      "name": "SVM (linear)",
+      "file": "svm.joblib",
+      "threshold": 0.25,
+      "backend": "sklearn"
+    },
+    {
+      "id": "random_forest",
+      "name": "Random Forest",
+      "file": "random_forest.joblib",
+      "threshold": 0.3,
+      "backend": "sklearn"
+    },
+    {
+      "id": "xgboost",
+      "name": "XGBoost (gblinear)",
+      "file": "xgboost.joblib",
+      "threshold": 0.55,
+      "backend": "sklearn"
+    },
+    {
+      "id": "neural_network",
+      "name": "Neural Network (Keras)",
+      "file": "neural_network.keras",
+      "scaler_file": "neural_network_scaler.joblib",
+      "threshold": 0.5,
+      "backend": "keras"
+    }
+  ]
+}
