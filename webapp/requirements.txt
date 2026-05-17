@@ -2,5 +2,5 @@ streamlit
 pandas
 scikit-learn
 xgboost
-tensorflow
+tensorflow-cpu
 joblib
