@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import re
 
 import joblib
 import numpy as np
@@ -60,7 +61,7 @@ def _predict_sklearn(bundle: dict, features: dict) -> dict:
         "probability": proba,
         "probability_non_progressor": 1.0 - proba,
         "model_id": bundle["model_id"],
-        "model_name": bundle.get("display_name", bundle["model_id"]),
+        "model_name": _sanitize_name(bundle.get("display_name", bundle["model_id"])),
         "threshold": threshold,
     }
 
@@ -92,7 +93,7 @@ def _predict_keras(entry: dict, features: dict) -> dict:
         "probability": proba,
         "probability_non_progressor": 1.0 - proba,
         "model_id": entry["id"],
-        "model_name": entry["name"],
+        "model_name": _sanitize_name(entry.get("name", entry["id"])),
         "threshold": threshold,
     }
 
@@ -111,7 +112,25 @@ def predict_progression(features: dict, model_id: str) -> dict:
 
 
 def list_models() -> list[dict]:
-    return load_registry()
+    regs = load_registry()
+    out = []
+    for entry in regs:
+        clean = dict(entry)
+        clean["name"] = _sanitize_name(clean.get("name", clean.get("id")))
+        out.append(clean)
+    return out
+
+
+def _sanitize_name(name: str) -> str:
+    """Remove trailing parenthetical backend/type labels from model names.
+
+    Examples: 'SVM (linear)' -> 'SVM', 'XGBoost (gblinear)' -> 'XGBoost',
+    'Neural Network (Keras)' -> 'Neural Network'
+    """
+    if not isinstance(name, str):
+        return name
+    # strip any trailing space + parentheses group
+    return re.sub(r"\s*\([^)]*\)\s*$", "", name).strip()
 
 
 def predict_all_models(features: dict) -> list[dict]:
