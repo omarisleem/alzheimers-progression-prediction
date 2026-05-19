@@ -9,7 +9,7 @@
     },
     {
       "id": "svm",
-      "name": "SVM (linear)",
+      "name": "SVM",
       "file": "svm.joblib",
       "threshold": 0.25,
       "backend": "sklearn"
@@ -20,21 +20,6 @@
       "file": "random_forest.joblib",
       "threshold": 0.3,
       "backend": "sklearn"
-    },
-    {
-      "id": "xgboost",
-      "name": "XGBoost (gblinear)",
-      "file": "xgboost.joblib",
-      "threshold": 0.55,
-      "backend": "sklearn"
-    },
-    {
-      "id": "neural_network",
-      "name": "Neural Network (Keras)",
-      "file": "neural_network.keras",
-      "scaler_file": "neural_network_scaler.joblib",
-      "threshold": 0.5,
-      "backend": "keras"
     }
   ]
 }
