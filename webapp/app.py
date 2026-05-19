@@ -17,7 +17,6 @@ if str(WEBAPP_DIR) not in sys.path:
     sys.path.insert(0, str(WEBAPP_DIR))
 
 from config import INTEGER_FEATURES, MODEL_FEATURES
-from data import generate_random_features
 from predict import list_models, load_feature_meta, predict_all_models
 
 st.set_page_config(
@@ -32,10 +31,11 @@ st.markdown(
     <style>
     .block-container { padding-top: 2rem; max-width: 900px; }
     .result-card {
-        border-radius: 12px;
-        padding: 1.25rem 1.5rem;
+        border-radius: 16px;
+        padding: 1.1rem 1.3rem;
         margin-top: 1rem;
         border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
     }
     .result-progressor {
         border-color: #fecaca;
@@ -45,7 +45,28 @@ st.markdown(
         border-color: #bbf7d0;
         background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     }
-    .result-title { font-size: 1.15rem; font-weight: 700; margin: 0 0 0.35rem 0; }
+    .result-title {
+        font-size: 1.18rem;
+        font-weight: 800;
+        margin: 0 0 0.25rem 0;
+        letter-spacing: -0.02em;
+    }
+    .result-title-progressor { color: #b91c1c; }
+    .result-title-non { color: #15803d; }
+    .result-title-error { color: #b45309; }
+    .result-badge {
+        display: inline-block;
+        margin-bottom: 0.5rem;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .result-badge-progressor { color: #b91c1c; background: rgba(185, 28, 28, 0.12); }
+    .result-badge-non { color: #166534; background: rgba(22, 101, 52, 0.12); }
+    .result-badge-error { color: #b45309; background: rgba(180, 83, 9, 0.12); }
     .muted { color: #64748b; font-size: 0.85rem; }
     .result-error {
         border-color: #fde68a;
@@ -108,8 +129,6 @@ def _render_inputs(defaults: dict) -> dict:
                     values[col] = int(
                         st.number_input(
                             col,
-                            min_value=int(lo),
-                            max_value=int(hi),
                             value=int(defaults[col]),
                             step=1,
                             key=f"inp_{col}",
@@ -119,8 +138,6 @@ def _render_inputs(defaults: dict) -> dict:
                 values[col] = float(
                     st.number_input(
                         col,
-                        min_value=lo,
-                        max_value=hi,
                         value=float(defaults[col]),
                         key=f"inp_{col}",
                     )
@@ -138,22 +155,10 @@ def _clear_form_state() -> None:
         if key.startswith("inp_"):
             del st.session_state[key]
     st.session_state.pop("ground_truth", None)
-    st.session_state.pop("synthetic_random", None)
 
 
-def _load_random_sample() -> None:
-    features = generate_random_features(_feature_meta())
-    _apply_features_to_form(features)
-    st.session_state.pop("ground_truth", None)
-    st.session_state["synthetic_random"] = True
 
 
-def _render_synthetic_banner() -> None:
-    if st.session_state.get("synthetic_random"):
-        st.info(
-            "Random **synthetic** values (sampled from feature ranges, not a dataset row). "
-            "There is no known progressor label — compare model predictions only."
-        )
 
 
 def _render_model_result(result: dict, actual: int | None = None) -> None:
@@ -161,7 +166,8 @@ def _render_model_result(result: dict, actual: int | None = None) -> None:
         st.markdown(
             f"""
             <div class="result-card result-error">
-                <p class="result-title">⚠️ {result['model_name']}</p>
+                <div class="result-badge result-badge-error">Error</div>
+                <p class="result-title result-title-error">{result['model_name']}</p>
                 <p class="muted">Prediction failed: {result['error']}</p>
             </div>
             """,
@@ -171,12 +177,9 @@ def _render_model_result(result: dict, actual: int | None = None) -> None:
 
     is_prog = result["prediction"] == 1
     card_class = "result-progressor" if is_prog else "result-non"
-    emoji = "⚠️" if is_prog else "✓"
-    prob = result["probability"] if is_prog else result["probability_non_progressor"]
-    threshold_note = ""
-    if result.get("threshold") is not None:
-        threshold_note = f" · threshold {result['threshold']}"
-
+    badge_class = "result-badge-progressor" if is_prog else "result-badge-non"
+    title_class = "result-title-progressor" if is_prog else "result-title-non"
+    status_label = "Progressor" if is_prog else "Non-progressor"
     match_note = ""
     if actual is not None:
         correct = result["prediction"] == actual
@@ -186,14 +189,13 @@ def _render_model_result(result: dict, actual: int | None = None) -> None:
             else " · <strong>does not match actual</strong>"
         )
 
+    # Render compact result card; model details shown in expandable section below
     st.markdown(
         f"""
         <div class="result-card {card_class}">
-            <p class="result-title">{emoji} {result['label']}</p>
-            <p class="muted">
-                <strong>{result['model_name']}</strong>{threshold_note} ·
-                confidence <strong>{prob * 100:.1f}%</strong>{match_note}
-            </p>
+            <div class="result-badge {badge_class}">{status_label}</div>
+            <p class="result-title {title_class}">{result['label']}</p>
+            <p class="muted">Model: {result['model_name']}{match_note}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -223,24 +225,16 @@ def main():
         )
         st.subheader("Models")
         for m in models:
-            th = m.get("threshold")
-            note = f" (threshold {th})" if th is not None else ""
-            st.markdown(f"- **{m['name']}**{note}")
+            st.markdown(f"- **{m['name']}**")
         if st.button("Reset form to median values", use_container_width=True):
             _clear_form_state()
             st.rerun()
-        if st.button("Fill random values", use_container_width=True):
-            _load_random_sample()
-            st.rerun()
+        
 
     st.title("Alzheimer Progression Predictor")
     st.caption("Fill in patient features once — all models predict together")
 
-    if st.button("Fill with random values", type="secondary"):
-        _load_random_sample()
-        st.rerun()
-
-    _render_synthetic_banner()
+    
     truth = st.session_state.get("ground_truth")
 
     defaults = _defaults()
