@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from config import INTEGER_FEATURES, MODEL_FEATURES
+from webapp.config import INTEGER_FEATURES, MODEL_FEATURES
 
 
 def generate_random_features(

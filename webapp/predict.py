@@ -8,7 +8,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from config import MODEL_FEATURES, SCALE_FEATURES, TARGET_LABELS
+from webapp.config import MODEL_FEATURES, SCALE_FEATURES, TARGET_LABELS
 
 WEBAPP_DIR = Path(__file__).resolve().parent
 MODEL_DIR = WEBAPP_DIR / "models"

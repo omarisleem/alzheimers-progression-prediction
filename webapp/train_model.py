@@ -18,7 +18,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
-from config import INTEGER_FEATURES, MODEL_FEATURES, SCALE_FEATURES, TARGET_LABELS
+from webapp.config import INTEGER_FEATURES, MODEL_FEATURES, SCALE_FEATURES, TARGET_LABELS
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "Data" / "Processed" / "df_clean_AD.csv"
@@ -158,7 +158,7 @@ def train_xgboost(X: pd.DataFrame, y: pd.Series) -> tuple:
     return model, scaler, 0.55
 
 
-def train_neural_network(X: pd.DataFrame, y: pd.Series) -> dict | None:
+def train_neural_network(X: pd.DataFrame, y: pd.Series, epochs: int = 100, batch_size: int = 32) -> dict | None:
     try:
         import tensorflow as tf
         from tensorflow import keras
@@ -200,29 +200,32 @@ def train_neural_network(X: pd.DataFrame, y: pd.Series) -> dict | None:
 
     callbacks = [
         EarlyStopping(
-            monitor="loss",
-            patience=20,
+            monitor="val_loss",
+            patience=15,
             mode="min",
             restore_best_weights=True,
-            verbose=0,
+            verbose=1,
         ),
         ReduceLROnPlateau(
-            monitor="loss",
+            monitor="val_loss",
             factor=0.5,
-            patience=10,
+            patience=7,
             mode="min",
             min_lr=1e-6,
-            verbose=0,
+            verbose=1,
         ),
     ]
+
     model.fit(
         Xs,
         y_arr,
-        epochs=300,
-        batch_size=8,
+        epochs=epochs,
+        batch_size=batch_size,
         class_weight=class_weight,
         callbacks=callbacks,
-        verbose=0,
+        validation_split=0.15,
+        shuffle=True,
+        verbose=1,
     )
 
     model_id = "neural_network"
