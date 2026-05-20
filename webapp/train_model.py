@@ -236,6 +236,7 @@ def train_neural_network(X: pd.DataFrame, y: pd.Series) -> dict | None:
         "name": "Neural Network (Keras)",
         "file": keras_path.name,
         "scaler_file": scaler_path.name,
+        "scale_features": SCALE_FEATURES,   # ← add this
         "threshold": 0.5,
         "backend": "keras",
     }

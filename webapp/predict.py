@@ -8,7 +8,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from config import MODEL_FEATURES, TARGET_LABELS
+from config import MODEL_FEATURES, SCALE_FEATURES, TARGET_LABELS
 
 WEBAPP_DIR = Path(__file__).resolve().parent
 MODEL_DIR = WEBAPP_DIR / "models"
@@ -78,7 +78,7 @@ def _predict_keras(entry: dict, features: dict) -> dict:
     scaler = joblib.load(scaler_path)
 
     row = pd.DataFrame([[features[c] for c in MODEL_FEATURES]], columns=MODEL_FEATURES)
-    scale_features = [f for f in MODEL_FEATURES if f != "PTGENDER"]
+    scale_features = entry.get("scale_features", SCALE_FEATURES)
     row_scaled = row.copy()
     row_scaled[scale_features] = scaler.transform(row[scale_features])
 
