@@ -17,8 +17,7 @@ if str(WEBAPP_DIR) not in sys.path:
     sys.path.insert(0, str(WEBAPP_DIR))
 
 from config import INTEGER_FEATURES, MODEL_FEATURES
-from webapp.predict import list_models, load_feature_meta, predict_all_models
-
+from predict import list_models, load_feature_meta, predict_all_models
 st.set_page_config(
     page_title="Alzheimer Progression Predictor",
     page_icon="🧠",
