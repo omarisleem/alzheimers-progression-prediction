@@ -158,7 +158,7 @@ def _clear_form_state() -> None:
 
 
 def _display_probability(probability: float, minimum: float = 0.02, maximum: float = 0.98) -> float:
-    return max(minimum, min(maximum, probability))
+    return minimum + (maximum - minimum) * probability
 
 
 
