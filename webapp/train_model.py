@@ -137,17 +137,22 @@ def train_xgboost(X: pd.DataFrame, y: pd.Series) -> tuple:
     scaler = fit_scaler(X)
     Xs = scale_frame(X, scaler)
     model = xgb.XGBClassifier(
-        booster="gblinear",
-        objective="binary:logistic",
-        eval_metric="auc",
-        scale_pos_weight=11.249850857719316,
-        reg_alpha=0.004011413377415873,
-        reg_lambda=0.022525794833067405,
-        learning_rate=0.16907636777548096,
-        n_estimators=529,
+        booster='gbtree',
+        objective='binary:logistic',
+        eval_metric='auc',
+        scale_pos_weight=9,
         random_state=42,
         verbosity=0,
-        updater="coord_descent",
+
+        n_estimators=450,
+        learning_rate=0.011904018053087056,
+        max_depth=5,
+        min_child_weight=14,
+        subsample=0.7803454529027625,
+        colsample_bytree=0.8037879721674877,
+        gamma=0.35852119757873085,
+        reg_alpha=1.3607206526502416,
+        reg_lambda=1.948525020925154,
     )
     model.fit(Xs, y)
     return model, scaler, 0.55

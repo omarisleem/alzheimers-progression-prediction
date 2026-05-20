@@ -157,6 +157,10 @@ def _clear_form_state() -> None:
     st.session_state.pop("ground_truth", None)
 
 
+def _display_probability(probability: float, minimum: float = 0.02, maximum: float = 0.98) -> float:
+    return max(minimum, min(maximum, probability))
+
+
 
 
 
@@ -200,7 +204,11 @@ def _render_model_result(result: dict, actual: int | None = None) -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.progress(result["probability"], text=f"P(progressor): {result['probability'] * 100:.1f}%")
+    display_progressor = _display_probability(result["probability"])
+    st.progress(
+        display_progressor,
+        text=f"P(progressor): {display_progressor * 100:.1f}%",
+    )
 
 
 def main():
@@ -280,11 +288,13 @@ def main():
             with st.container(border=True):
                 _render_model_result(result, actual=actual)
                 if result.get("ok"):
+                    display_progressor = _display_probability(result["probability"])
+                    display_non_progressor = 1.0 - display_progressor
                     c1, c2 = st.columns(2)
-                    c1.metric("P(progressor)", f"{result['probability'] * 100:.1f}%")
+                    c1.metric("P(progressor)", f"{display_progressor * 100:.1f}%")
                     c2.metric(
                         "P(non-progressor)",
-                        f"{result['probability_non_progressor'] * 100:.1f}%",
+                        f"{display_non_progressor * 100:.1f}%",
                     )
             if i < len(results) - 1:
                 st.divider()
