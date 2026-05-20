@@ -157,7 +157,7 @@ def _clear_form_state() -> None:
     st.session_state.pop("ground_truth", None)
 
 
-def _display_probability(probability: float, minimum: float = 0.02, maximum: float = 0.98) -> float:
+def _display_probability(probability: float, minimum: float = 0.10, maximum: float = 0.90) -> float:
     return minimum + (maximum - minimum) * probability
 
 
